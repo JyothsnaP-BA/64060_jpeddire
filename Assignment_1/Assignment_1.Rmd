@@ -1,0 +1,120 @@
+---
+title: "FML Assignment 1"
+author: "Jyothsna P - 811251679"
+date: "1/28/2023"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+## R Markdown
+
+##Install Readr Package
+#Install readr package to use read.csv file from the local machine 
+#repos URL is required to use the install packages in the R markdown file
+```{r}
+#install.packages("readr",repos = "http://cran.us.r-project.org")
+#install.packages("tidyverse")
+#library(tidyverse)
+#library(readr)
+#install.packages("pscl", repos = "https://cran.rstudio.com")
+
+```
+
+##Load Cereals Data
+#read.csv function is useful to load the data available in the csv file to r environment
+#Cereals.csv file is downloaded from the FML course in Canvas
+```{r}
+#install.packages("ggplot2")
+
+cerealsData <- read.csv("C:/Users/peddi/Downloads/Cereals.csv",header = TRUE,sep = ",")
+```
+
+#Class of the Name column
+
+```{r}
+
+class(cerealsData$name)
+
+```
+
+##Descriptive Statistics
+
+#Check if any null values are there in the cereals dataset
+```{r}
+any(is.na(cerealsData))
+```
+
+#Get Descriptive Statistics of all the columns in the dataset
+
+```{r}
+summary(cerealsData)
+```
+
+Get Descriptive Statistics of the Calories column in the dataset
+```{r}
+
+summary(cerealsData$calories)
+
+```
+
+Transformations
+
+Transform column name type in Cereals dataset to factor
+
+```{r}
+cerealsData$type <- factor(cerealsData$type) 
+```
+
+```{r}
+
+plot(cerealsData$fiber)
+Logtrans_fiber=log10(cerealsData$fiber)
+plot(Logtrans_fiber)
+
+```
+
+```{r}
+Logtrans_sodium=sqrt(cerealsData$sodium)
+Logtrans_sodium
+```
+
+Including Plots
+
+Scatter Plot for Calories and fat attributes
+```{r}
+
+plot(cerealsData$calories,cerealsData$fat)
+
+```
+Plotting ggplot for categorical attribute type and carbo variables
+
+```{r}
+library(ggplot2)
+ggplot(cerealsData, aes(x=cerealsData$carbo, y=cerealsData$type)) + 
+  geom_bar(stat = "identity", width=0.2) 
+```
+
+Plotting ggplot for sugars and protein variables
+
+```{r}
+library(ggplot2)
+ggplot(cerealsData, aes(x=cerealsData$sugars, y=cerealsData$protein)) +
+  geom_line()
+
+```
+Barplot for sugars variable
+
+```{r}
+barplot(cerealsData$sugars)
+```
+
+plotting ggplot for mfr and type variables
+
+```{r}
+ggplot(cerealsData, aes(mfr, ..count..)) + geom_bar(aes(fill = type), position = "dodge")
+
+```
+
