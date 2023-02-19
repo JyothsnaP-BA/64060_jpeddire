@@ -1,0 +1,472 @@
+---
+title: "Assignment 2 Knn Model - Universal Bank Data"
+author: "Jyothsna P - 811251679"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+# Add all necessary libraries needed to run the code
+
+```{r}
+#install.packages("readr")
+library(readr)
+library(dplyr)
+library(fastDummies)
+library(ISLR)
+library(class)
+library(caret)
+library(gmodels)
+
+```
+
+# Data Load and Manipulation
+
+### Read universal Bank Data to R environment
+
+```{r}
+universalBankData <- read.csv("C:/Users/peddi/OneDrive/Desktop/Spring 2023/FML/Module 4/Assignment 2/UniversalBank.csv")
+
+```
+
+### To verify the total rows in the data set
+
+```{r}
+nrow(universalBankData)
+```
+
+### Verify if there are any null values in the datasets
+
+```{r}
+any(is.na(universalBankData))
+```
+
+### To check descriptive statistics of all the features in the universal Bank data
+
+```{r}
+summary(universalBankData)
+
+```
+
+### Remove ID and Zip.Code columns from the dataframe
+
+```{r}
+#dplyr package is helpful for data manipulation
+#select function in dplyr helps in selecting fewer columns in the dataframe or excluding columns in the data frame
+
+#remove ID and Zipcode columns from the Universal Bank Data
+universalBankData <- select(universalBankData,-c(ID,ZIP.Code))
+
+#Existing features in the dataset clarifies that ID and Zip code are removed from the dataset
+colnames(universalBankData)
+
+```
+
+### Identify data type of all the features in the dataset
+
+```{r}
+sapply(universalBankData,class)
+```
+
+### Convert the Personal Loan variable to factor
+
+```{r}
+#universalBankData$Personal.Loan <- factor(universalBankData$Personal.Loan)
+#summary(universalBankData$Personal.Loan)
+```
+
+### Create dummy variables for education using fastdummies package
+
+```{r}
+#install.packages("fastDummies")
+library(fastDummies)
+
+#dummy_cols function in fastDummies package helps in creating dummy variables automatically using the below code
+universalBankData <- dummy_cols(universalBankData,select_columns = "Education")
+colnames(universalBankData)
+
+```
+
+### Remove Education variable after Dummy variables are created for Education
+
+```{r}
+universalBankData <- select(universalBankData,-"Education")
+#Column names confirm that the education column is removed from the dataset
+colnames(universalBankData)
+```
+
+```{r}
+summary(universalBankData)
+```
+
+# Question 1
+
+### Use 60% of data for training and 40% of data for validation
+
+```{r}
+Index_train <- createDataPartition(universalBankData$Personal.Loan,
+                                   p=0.6,list=FALSE)
+train <- universalBankData[Index_train,]
+val <- universalBankData[-Index_train,]
+```
+
+### Test Input provided in the question
+
+```{r}
+input <- data.frame(Age = 40, Experience = 10, Income = 84, Family = 2,
+                    CCAvg = 2, Mortgage = 0, 'Securities Account' = 0, 
+                    'CD Account' = 0, Online = 1, 'CreditCard' = 1, 
+                    Education_1 = 0, Education_2 = 1, Education_3 = 0)
+```
+
+### Numeric variables in the dataset as a vector
+
+```{r}
+numericVariables <- c("Age","Experience","Income","Family","CCAvg","Mortgage")
+
+```
+
+### Normalize the datasets for model building
+
+```{r}
+normValues <- preProcess(train[,numericVariables],
+                         method=c("center","scale"))
+
+train_norm <- predict(normValues,train)
+#validation normalized variable 
+val_norm <-  predict(normValues,val)
+
+input_norm <- predict(normValues,input)
+
+
+```
+
+### Summary of normalized train, input, and validation datasets
+
+```{r}
+summary(train_norm)
+summary(val_norm)
+summary(input_norm)
+```
+
+### Use Knn function to predit outcome of input given in the question
+
+```{r}
+
+train_predictors <- select(train_norm,-Personal.Loan)
+train_label <- select(train_norm,Personal.Loan)
+
+val_predictors <- select(val_norm,-Personal.Loan)
+val_label <- select(val_norm,Personal.Loan)
+
+
+input_norm_pred <- knn(train=train_predictors, test=input_norm,cl=train_label$Personal.Loan,k=1)
+
+```
+
+### Class 0 - Loan Not Accepted, Class 1 -Loan Accepted
+
+```{r}
+#As mentioned in the question.
+cutoff <- 0.5
+successOutcome <- ifelse(as.numeric(input_norm_pred) <0.5,
+                         "Loan Not Accepted","Loan Accepted")  
+print(successOutcome)
+```
+
+# Question 2
+
+### Tuning Model to find the best K value for knn model
+
+```{r}
+#knn  
+set.seed(428)
+search_grid <- expand.grid(k=c(1:20))
+
+train_norm$Personal.Loan <- factor(train_norm$Personal.Loan)
+
+model <- train(Personal.Loan~., data=train_norm,method="knn",tuneGrid=search_grid,metric="Accuracy")
+
+model
+
+```
+
+```{r}
+#Below code prints the best K value from the knn model tuning
+cat("Optimal K value for the dataset using the train method is ",as.character(model$bestTune[,"k"]))
+
+```
+
+### Alternative way to find the best k value using the train and validation dataset
+
+```{r}
+
+val_label$Personal.Loan <- factor(val_label$Personal.Loan)
+accuracydf <- data.frame(kValue=seq(1,14,1),Accuracy=0)
+
+for(i in 1:nrow(accuracydf)){
+  
+val_label_predict <-  knn(train=train_predictors,test=val_predictors,
+                          cl=train_label$Personal.Loan,k=i)
+
+accuracydf[i,2] <- confusionMatrix(val_label_predict,
+                                   val_label$Personal.Loan)$overall[1]   
+}
+accuracydf
+
+```
+
+```{r}
+bestk_alternativeOption <- accuracydf[which.max(accuracydf$Accuracy),][1]
+
+cat("Alternative Approach - Optimal K value for the dataset is ",
+    as.character(bestk_alternativeOption))
+
+```
+
+# Question 3
+
+```{r}
+Optimal_k_value =bestk_alternativeOption
+
+#Use train_norm and val_norm created in previous steps for inputs of knn function  
+
+predicted_Label <- knn(train=train_predictors,test=val_predictors,
+                       cl=train_label$Personal.Loan,k=Optimal_k_value)
+
+#Get the top 10 rows from the predicted label
+head(predicted_Label,n = 10)
+
+
+```
+
+### Build confusion matrix for the Predicted vs actual outcome
+
+```{r}
+confusionMatrix <- CrossTable(val_label$Personal.Loan,
+                              predicted_Label,prop.chisq = FALSE)
+
+confusionMatrix
+```
+
+# Question 4
+
+```{r}
+
+input_norm_pred_WithOptimal_k <- knn(train=train_predictors,test=input_norm,
+                                     cl=train_label$Personal.Loan,
+                                     k=Optimal_k_value)
+
+input_norm_pred_WithOptimal_k
+
+
+```
+
+# Quesiton 5
+
+### For partition of data into three sets using the partition function available in the splitTools package
+
+```{r}
+#install.packages("splitTools")
+#install.packages("ranger")
+library(splitTools)
+library(ranger)
+
+
+partitionIndex <- partition(universalBankData$Age,
+                            type=c("stratified"),
+                            p = c(train=0.5,val=0.3,test=0.2))
+
+# Summary of partition Index
+summary(partitionIndex)
+
+#structure of partition Index
+str(partitionIndex)
+
+```
+
+### Create three data frames for train, val and test using the partition index created in
+
+### the previous step
+
+```{r}
+train_new <- universalBankData[partitionIndex$train,]
+val_new <- universalBankData[partitionIndex$val,]
+test_new <- universalBankData[partitionIndex$test,]
+
+```
+
+### Normalize the three datasets using the preProcess method
+
+```{r}
+normValues_new <- preProcess(train_new[,numericVariables],
+                             method=c("center","scale")) # method="range")
+
+train_new_norm <- predict(normValues_new,train_new)
+val_new_norm <-  predict(normValues_new,val_new)
+test_new_norm <-  predict(normValues_new,test_new)
+
+```
+
+### Create separate datasets for predictors and labels for normalized train,
+
+### validate and test dataset
+
+```{r}
+train_new_predictors <- select(train_new_norm,-Personal.Loan)
+train_new_label <- select(train_new_norm,Personal.Loan)
+
+val_new_predictors <- select(val_new_norm,-Personal.Loan)
+val_new_label <- select(val_new_norm,Personal.Loan)
+
+test_new_predictors <- select(test_new_norm,-Personal.Loan)
+test_new_label <- select(test_new_norm,Personal.Loan)
+
+```
+
+```{r}
+
+set.seed(428)
+search_grid <- expand.grid(k=c(1:20))
+
+train_new_norm$Personal.Loan <- factor(train_new_norm$Personal.Loan)
+
+model_new <- train(Personal.Loan~.,train_new_norm,
+                   method='knn',tuneGrid=search_grid,metric="Accuracy")
+
+model_new 
+
+
+
+```
+
+```{r}
+
+#Below code prints the best K value from the knn model tuning
+cat("Optimal K value for the dataset using the train method is ",
+    as.character(model_new$bestTune[,"k"]))
+
+```
+
+### Alternative way to find the best k value using the train and validation dataset
+
+```{r}
+
+val_new_label$Personal.Loan <- factor(val_new_label$Personal.Loan)
+train_new_label$Personal.Loan <- factor(train_new_label$Personal.Loan)
+test_new_label$Personal.Loan <- factor(test_new_label$Personal.Loan)
+
+
+accuracydf <- data.frame(kValue=seq(1,14,1),Accuracy_Train=0,
+                         Accuracy_Val=0,Accuracy_Test=0)
+
+for(i in 1:nrow(accuracydf)){
+  
+#val_label_predict <-  knn(train=train_new_predictors,test=val_new_predictors,
+#                          cl=train_new_label$Personal.Loan,k=i)
+train_new_label_Predicted <- knn(train_new_predictors,train_new_predictors,
+                                 train_new_label$Personal.Loan,
+                                 k=i)
+
+
+accuracydf[i,2] <- confusionMatrix(train_new_label_Predicted, train_new_label$Personal.Loan,positive="1")$overall[1]   
+
+val_new_label_Predicted <- knn(train_new_predictors,val_new_predictors,
+                               train_new_label$Personal.Loan,
+                                 k=i)
+
+
+accuracydf[i,3] <- confusionMatrix(val_new_label_Predicted,
+                                   val_new_label$Personal.Loan,positive="1")$overall[1]   
+
+
+test_new_label_Predicted <- knn(train_new_predictors,test_new_predictors,
+                                train_new_label$Personal.Loan,
+                                 k=i)
+
+
+accuracydf[i,4] <- confusionMatrix(test_new_label_Predicted,
+                                   test_new_label$Personal.Loan,positive="1")$overall[1]
+
+
+}
+accuracydf
+
+```
+
+### k=1 has accuracy 1 which could mean there is chance of overfitting. Validation and Test has lesser accuracy
+
+### k=3 has best accuracy considering all three datasets train, validation and test
+
+```{r}
+bestk_alternativeOption_1 <- 3
+#accuracydf[which.max(accuracydf$Accuracy),][1]
+
+cat("Alternative Approach - Optimal K value for the dataset is ",
+    as.character(bestk_alternativeOption_1))
+
+```
+
+### knn output for train dataset
+
+```{r}
+train_new_label_Predicted <- knn(train_new_predictors,train_new_predictors,
+                                 train_new_label$Personal.Loan,
+                                 k=bestk_alternativeOption_1)
+
+head(train_new_label_Predicted)
+```
+
+### knn output for validation data set
+
+```{r}
+val_new_label_Predicted <- knn(train_new_predictors,val_new_predictors,
+                               train_new_label$Personal.Loan,
+                                 k=bestk_alternativeOption_1)
+
+head(val_new_label_Predicted)
+
+```
+
+### knn output for test data set
+
+```{r}
+test_new_label_Predicted <- knn(train_new_predictors,test_new_predictors,
+                                train_new_label$Personal.Loan,
+                                 k=bestk_alternativeOption_1)
+
+head(test_new_label_Predicted)
+
+```
+
+```{r}
+
+confusionMatrix(train_new_label_Predicted,train_new_label$Personal.Loan,positive="1")
+confusionMatrix(val_new_label_Predicted,val_new_label$Personal.Loan,positive="1")
+confusionMatrix(test_new_label_Predicted,test_new_label$Personal.Loan,positive="1")
+
+```
+
+```{r}
+trainAccuracy <- confusionMatrix(train_new_label_Predicted,
+                                 train_new_label$Personal.Loan,positive="1")$overall[1]
+
+validationAccuracy <- confusionMatrix(val_new_label_Predicted,
+                                      val_new_label$Personal.Loan,positive="1")$overall[1] 
+
+testAccuracy <- confusionMatrix(test_new_label_Predicted,
+                                test_new_label$Personal.Loan,positive="1")$overall[1]
+
+cat("The accuracy of train, validation, and test datasets observed using their\n
+    confusion matrices are ",as.character(round(100*trainAccuracy,2)),"%, ",
+    as.character(round(100*validationAccuracy,2)),"%, and ",
+    as.character(round(100*testAccuracy,2)),"%.\n 
+    The test and validation data accuracy are important in 
+    determining the k value. \nFor the value k=",
+    as.character(bestk_alternativeOption_1),", train, test, 
+    and validation data predicted outcomes accuracy improved.")
+
+```
+
+
