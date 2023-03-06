@@ -1,0 +1,224 @@
+---
+title: "Assignment_3"
+author: "Jyothsna P - 811251679"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r}
+###install.packages("e1071")
+###loading the required packages:dplyr
+###loading the required packages:ISLR
+###loading the required packages:tidyverse
+
+library(e1071)
+library(dplyr)
+library(caret)
+library(readr)
+library(ISLR)
+library(tidyverse)
+```
+
+### Read the UniversalBankData to the R environment
+
+```{r}
+
+UniversalBankData_1 <- read.csv("C:/Users/peddi/OneDrive/Desktop/Spring 2023/FML/Module 4/Assignment 2/UniversalBank.csv")
+
+```
+
+### Check the descriptive statistics of universalBank Data
+
+```{r}
+
+summary(UniversalBankData_1)
+
+```
+
+### Partitioning the data to train data 60% and validation data 40%.
+
+```{r}
+
+
+set.seed(143)
+
+#CreateDataPartition function helps in creating an index to partition data into desired ratio
+Index_Train <- createDataPartition(UniversalBankData_1$Personal.Loan,p=0.6,list = FALSE)
+
+#Index_train holds the row index of 60% of data.
+TrainData <- UniversalBankData_1[Index_Train,]
+ValidationDAta <- UniversalBankData_1[-Index_Train,]
+
+```
+
+# Question: A
+
+```{r}
+
+## Creating pivot table for Online as a column variable, creditcard as row variable and personal loan as a secondary row variab using the table function.
+
+table(CreditCard= TrainData$CreditCard, Online= TrainData$Online, Loan= TrainData$Personal.Loan)
+
+
+```
+
+# Question: B
+
+### Probability of Loan acceptance of a customer who is owing a bank credit card and actively using online services by using the above pivot table.
+
+```{r}
+
+## Calculating the Probability of accepting loan = Number of observations where Loan = 1 / Total number of observations where CreditCard = 1 and Online = 1.
+
+LoanAcceptProb = 55/(55+492)
+LoanAcceptProb
+
+```
+
+# Question: C
+
+## Creating two separate pivot tables for the training data.
+
+### Creating a pivot table for Loan(in rows) and Online(in column) for the training data using the table function.
+
+```{r}
+
+PTforLoanVSOnline = table(Loan= TrainData$Personal.Loan, Online=TrainData$Online)
+print(PTforLoanVSOnline)
+
+```
+
+### Creating a pivot table for loan(in rows) as a function of Credit card (as column)for the training data using table function.
+
+```{r}
+
+PTforCCVSLoan = table( Loan= TrainData$Personal.Loan,CC= TrainData$CreditCard)
+print(PTforCCVSLoan)
+```
+
+# Question: D
+
+```{r}
+
+##Calculating the probability of credit card given by loan when ( CC=1 | Loan=1 )
+
+DI= PTforCCVSLoan[2,2]/
+(PTforCCVSLoan[2,1]+PTforCCVSLoan[2,2])
+
+DI
+
+```
+
+```{r}
+##Calculating the probability of Online given by Loan when ( Online=1| Loan=1 )
+
+DII= PTforLoanVSOnline[2,2]/
+  (PTforLoanVSOnline[2,1]+PTforLoanVSOnline[2,2])
+
+DII
+
+```
+
+```{r}
+##Calculating the probability of Loan=1 
+
+# Numerator - Sum of all values where loan=1 - sum(PTforCCVSLoan[2,])
+# Denominator - Sum of all values in the matrix - sum(PTforCCVSLoan)
+
+DIII= sum(PTforCCVSLoan[2,])/ sum(PTforCCVSLoan)
+
+
+DIII
+
+```
+
+```{r}
+
+##Calculating the probability of credit card given by Loan when ( CC=1 | Loan=0 )
+
+DIV = PTforCCVSLoan[1,2]/
+  (PTforCCVSLoan[1,2]+PTforCCVSLoan[1,1])
+  
+DIV
+                         
+
+```
+
+```{r}
+
+##Calculating the probability of Online given by Loan when (Online=1| Loan= 0 )
+
+DV = PTforLoanVSOnline[1,2]/
+  (PTforLoanVSOnline[1,2]+PTforLoanVSOnline[1,1])
+
+DV
+
+```
+
+```{r}
+#Calculating the Probability of Loan= 0 
+
+# Numerator - Sum of all values where loan=0 - sum(PTforCCVSLoan[1,])
+# Denominator - Sum of all values in the matrix - sum(PTforCCVSLoan)
+
+DVI = sum(PTforCCVSLoan[1,])/
+         sum(PTforCCVSLoan)
+
+
+DVI
+
+
+```
+
+# Question: E
+
+## Computing the naive Bayes probability using the quantities computed above for P(Loan = 1 \| CC= 1, Online = 1)
+
+```{r}
+
+E1= (DI*DII*DIII)/((DI*DII*DIII)+(DIV*DV*DVI))
+
+E1
+
+
+```
+
+# Question: F
+
+## Comparing the probability values obtained in B and in naive Bayes model in E.
+
+### The value obtained in the B is 0.1005484 and value obtained by computing the naive Bayes probability in the E is 0.1011591. By comparing them it is clear that probability obtained from solving naive Bayes model have higher probability than that in B.
+
+# Question: G
+
+```{r}
+
+## Creating the Test data by applying the filters on train data on condition when CC=1 and Online=1
+
+TestData = filter(TrainData, CreditCard== 1 & Online== 1)
+
+head(TestData)
+
+```
+
+### Performing the Naive Bayes model on the training data.
+
+```{r}
+
+nb_Model = naiveBayes(Personal.Loan~ Online + CreditCard, data = TrainData)
+nb_Model
+
+```
+
+### Making the predictions and returning the probability values by using the naive Bayes model.
+
+```{r}
+
+Predicted_Test_Model<- predict(nb_Model,TestData, type = "raw")
+
+head(Predicted_Test_Model,n = 8)##showing the first few values from the predicted_test_model
+
+
+```
+
+### Comparing the probabilities obtained by the Naive Bayes model on training data in E is 0.1011591 and on test data in G is 0.1026888, which are almost same.
