@@ -1,0 +1,336 @@
+---
+title: "FML_Assignment.4"
+author: "Jyothsna P - 811251679"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r}
+##install all required packages
+##Load the required packages
+#install.packages("factoextra")
+#install.packages("flexclust")
+#install.packages("cluster")
+#install.packages("FactoMineR")
+library(readr)
+library(ISLR)
+library(dplyr)
+library(tidyverse)
+library(tinytex)
+library(factoextra)
+library(flexclust)
+library(cluster)
+library(FactoMineR)
+library(ggcorrplot)
+library(caret)
+
+```
+
+```{r}
+##Import the Pharmaceuticals data to R environment
+
+Pharmaceuticals_Data<- read.csv("C:/Users/peddi/OneDrive/Desktop/Spring 2023/FML/Module 6/Pharmaceuticals.csv")
+
+head(Pharmaceuticals_Data)
+
+```
+
+```{r}
+#To display the summary of the Pharmaceuticals data.
+summary(Pharmaceuticals_Data)
+
+```
+
+```{r}
+#To find the type of data present in the Pharmaceuticals dataset
+sapply(Pharmaceuticals_Data,class)
+
+```
+
+```{r}
+#Finding out if there any missing or null values present in the dataset.
+
+colMeans(is.na(Pharmaceuticals_Data))
+
+```
+
+There are no missing values in the dataset.
+
+## Question: A
+
+#Use only the numerical variables (1 to 9) to cluster the 21 firms. Justify the various choices made in conducting the cluster analysis, such as weights for different variables, the specific clustering algorithm(s) used, the number of clusters formed, and so on.
+
+```{r}
+#Using only the numerical variables (1 to 9) to cluster the 21 firms
+
+Pharmaceuticals_1<-Pharmaceuticals_Data[c(1,3:11)]
+row.names(Pharmaceuticals_1)<- Pharmaceuticals_1[,1]
+Pharmaceuticals_1<- Pharmaceuticals_1[,-1]
+head(Pharmaceuticals_1)
+
+```
+
+```{r}
+
+# Excluding the Charecter variables Name, Median_Recommendation, Exchange, Loacation.
+colnames(Pharmaceuticals_1)
+
+sapply(Pharmaceuticals_1,class)
+```
+
+```{r}
+#clustering the data by using the Euclidean distance formula and plotting the graph
+
+##Euclidean distance = sqrt[(x2-x1)^2+(y2-y1)^2]
+
+set.seed(110)
+
+Pharamaceuticals_Norm<- scale(Pharmaceuticals_1)#Normalizing the numerical variables from the dataset
+Pharmaceutical_Distance<- get_dist(Pharamaceuticals_Norm)#Uses Euclidean distance formula by default.
+fviz_dist(Pharmaceutical_Distance, order = TRUE, show_labels = TRUE)
+
+```
+
+The heatmap color intensity shows the increase and decrease of distance between the observations in the dataset.
+
+```{r}
+#plotting to find if there is any correlation between the variables.
+
+correlation<- cor(Pharamaceuticals_Norm)
+ggcorrplot(correlation,outline.color = "gray50",lab = TRUE,hc.order = TRUE, type = "full")
+
+```
+
+##### There is correlation between the variables,like ROA has the high positive correalation with Market_cap,Net_Profit_Margin,ROE,Asset_Turnover,and whereas ROE has positive correaltion with Market cap Net profit margin and ROA which means if the increase or decrease in one effects the other variables that are correlated.
+
+##### For finding the number of clusters,which means for finding of K value there are many clustering methods but,Elbow Method and Shilhouette Method are two main and widely used methods.
+
+
+```{r}
+# finding the k value using Elbow Method
+Elbow_Method<-fviz_nbclust(Pharamaceuticals_Norm, kmeans, method = "wss")
+plot(Elbow_Method)
+```
+
+#The elbow method is showing the optimal value of K=2 or 6.
+
+```{r}
+# Finding the k value using the Silhouette Method
+Silhouette_Method<-fviz_nbclust(Pharamaceuticals_Norm, kmeans, method = "silhouette")
+plot(Silhouette_Method)
+```
+
+#### The Silhouette method is showing the optimal value of K=5
+
+```{r}
+# Finding the values for all the K values from 2 to 6
+#install.packages("gridExtra")
+library(gridExtra)
+
+k2<- kmeans(Pharamaceuticals_Norm, centers = 2, nstart = 25)
+k3<- kmeans(Pharamaceuticals_Norm, centers = 3, nstart = 25)
+k4<- kmeans(Pharamaceuticals_Norm, centers = 4, nstart = 25)
+k5<- kmeans(Pharamaceuticals_Norm, centers = 5, nstart = 25)
+k6<- kmeans(Pharamaceuticals_Norm, centers = 6, nstart = 25)
+
+plot.1=fviz_cluster(k2,data = Pharamaceuticals_Norm)
+plot.2=fviz_cluster(k3,data = Pharamaceuticals_Norm)
+plot.3=fviz_cluster(k4,data = Pharamaceuticals_Norm)
+plot.4=fviz_cluster(k5,data = Pharamaceuticals_Norm)
+plot.5=fviz_cluster(k6,data = Pharamaceuticals_Norm)
+
+grid.arrange(plot.1,plot.2,plot.3,plot.4,plot.5)
+
+```
+
+```{r}
+#Plotting the clusters k=5 obtained from Silhouette
+Silhouette_k5<- kmeans(Pharamaceuticals_Norm,centers = 5,nstart = 25)
+Silhouette_plot<-fviz_cluster(Silhouette_k5,data=Pharamaceuticals_Norm)
+plot(Silhouette_plot)
+```
+
+The total number of clusters formed are k=5.From Silhouette method and Elbow method approach, it is clear that k=5 has better silhouette width and the low withinness.
+
+
+```{r}
+# finding the size of the cluster
+Silhouette_k5$size
+
+```
+
+```{r}
+# Finding the withiness of cluster
+Silhouette_k5$withinss
+```
+
+```{r}
+# Finding the cenetrs of the cluster
+Silhouette_k5$centers
+```
+
+```{r}
+Silhouette_k5$cluster
+```
+
+#### Above displayed is each observation is counties in the dataset belonging to the which Clusters.
+
+```{r}
+# Finding the total withinss of the cluster
+Silhouette_k5$tot.withinss
+```
+
+```{r}
+# Finding the size,withinss and total withinss of the K=2 cluster from Elbow method
+k2$size
+k2$withinss
+k2$tot.withinss
+
+```
+
+#### The total sum of squares within the Silhouette methos is 62.35 which is less than that of the value of total sum of squares within the Elbow method which is 118.56.Homogenous clusters is obtained when the sumof squares within the cluster is less. so I am choosing the silhouette method.where the optimal k value is K=5.
+
+### Here performing KCCA method of clustering using the Kmeans cluters k=5
+
+```{r}
+set.seed(111)
+
+pharmaceuticals_KCCA <- kcca(Pharamaceuticals_Norm, k = 5, kccaFamily("kmedians"))
+pharmaceuticals_KCCA
+```
+
+```{r}
+clusters_index <- predict(pharmaceuticals_KCCA)
+image(pharmaceuticals_KCCA)
+points(Pharamaceuticals_Norm, col = clusters_index, pch = 10, cex = 2)
+```
+
+#### Both k-means and KCCA are clustering algorithms. KCCA is computationaly complex and requires more parameter tuning.where as k-means algorithm is a simple and widely used clustering algorithm that aims to partition a given set of observations into k clusters, where each observation belongs to the cluster with the nearest mean. so we will continue our analysis based on the K-means clustering algorithm.
+
+
+## Question: B
+
+##Interpret the clusters with respect to the numerical variables used in forming the clusters
+```{r}
+Silhouette_Group<- Silhouette_k5$cluster
+Silhouette_Group<- as.data.frame(Silhouette_Group)
+Silhouette_Pharmaceuticals= cbind(Pharmaceuticals_1,Silhouette_Group)
+#Finding the mean of variables by clusters to understand the features of clusters. 
+Mean_of_Cluster= Silhouette_Pharmaceuticals %>% group_by(Silhouette_Group) %>% summarise_all("mean")
+Mean_of_Cluster
+
+```
+### Following are the observations from each clusters based on the above output.
+
+#### Cluster 1
+
+The companies in this cluster has the lower Revenue growth than all the other companies.By examining the other variables, Net_profit_Margin of these companies are doing good and Leverage is also lower which means the companies in this cluster have less debts compared to the others in the clusters 2,3,and 4.
+
+#### Cluster 2
+
+The companies in this cluster have the least Net_Profit_Margin compares to all other companies in the other clusters and also it has the least Return on Equity(ROE) which indicates that companies in this cluster are very week in converting their equities into profits.In addition it has the highest Price Earning Ratio (PE_ratio) indicating that they may be overvalued and not gaining the profits.Beta value value is also low compared to others which means that these companies stocks are less volatile.
+
+#### Cluster 3
+
+The companies in this cluster have the highest Rvenue_Growth indicating that they are going in the right path for development but they are utilizing its assets to generate revenue as we can see the companies in this cluster have least Asset_Turnover ratio.However the PE_ratio is less compared to others which means these companies have the better earnings.
+
+#### Cluster 4
+
+The companies in this cluster have highest leverage which indicates that these companies are using higher debts to finance its operations.The Beta value is high indicating that the stock is more volatile.The companies in this cluster have lowest Market capital,ROA,Revenue Growth and Net Profit Margin which indicates these companies are facing the high financial and competition problems.
+
+#### CLuster 5
+
+The Companies in this cluster have the highest Market capital,ROA,ROE,Asset Turnover,Revenue growth and Net Profit Margin and have the less leverage compared to other companies in the all other clusters which indicates that these companies are performing well with very less debts. This cluster has the best performing companies among all the clusters.
+
+## Question: c
+#Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in forming the clusters)
+
+```{r}
+Pharmaceutical_Pattern<- Pharmaceuticals_Data %>% select(c(12,13,14)) %>% mutate(Cluster=Silhouette_k5$cluster)
+print(Pharmaceutical_Pattern)
+
+```
+
+#Identifying if there is any trends in the data and by utilizing the barcharts we will visualize the distribution of bussiness group by clusters.
+
+```{r}
+
+Median_Recom <- ggplot(Pharmaceutical_Pattern, mapping = aes(factor(Cluster), fill=Median_Recommendation)) +
+  geom_bar(position = 'dodge') + labs(x='Clusters', y='Frequence')
+plot(Median_Recom)
+
+```
+
+
+```{r}
+
+Location <- ggplot(Pharmaceutical_Pattern, mapping = aes(factor(Cluster), fill=Location)) + geom_bar(position = 'dodge') + labs(x='Clusters', y='Frequence')
+plot(Location)
+
+```
+
+
+```{r}
+
+Exchange <- ggplot(Pharmaceutical_Pattern, mapping = aes(factor(Cluster), fill=Exchange)) +
+geom_bar(position = 'dodge') + labs(x='Clusters', y='Frequence')
+plot(Exchange)
+
+```
+
+
+
+##From above plots there are no any patterns seen in the clusters with respect to the variables those are not used to form the clusters, but there are some observations that can be made.
+
+#### Cluster-1
+
+Cluster 1 grouped all the New York Stock Exchange(NYSE) listed companies predominantly in North America(United States and Canada). Based on the recommendations, most of them are either hold or moderate sell, which implies they might have low opportunities for growth.
+
+#### Cluster-2
+
+All companies in cluster 2 are NYSE listed and located in North America(United States and Canada). This is a safe investment cluster with just two companies, with one company's median recommendation as a moderate buy and the other as a hold.
+
+#### Cluster-3
+
+All companies in the cluster are NYSE listed and located in the United States or European countries(France and Ireland). Median recommendations in the cluster reflect that the investments in these companies are for growth investments with a possible balanced risk involved, as the ratio of moderate buy and moderate sell is the same.
+
+#### Cluster-4
+
+All the exchanges available in the United States listed companies are in cluster 4. With the recommendations hold and moderate buy, this could be considered a low-risk investment. Companies are located in Germany and the United States.
+
+#### Cluster-5
+
+All companies are NYSE listed and from the United States and the UK. Companies' median recommendations are with an equal proportion of hold and moderate buy, implying that the companies are low risk.
+
+
+## Question:D
+### Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+
+#Naming the clusters based on the variables in the dataset.
+
+### Cluster 1 - "Stable Growth-profitable Companies".
+
+Based on the stable and normal Financial Metrics in the variables indicates that the comapanies in this cluster are stable and they have less leverage and good Net profit margin which means they are performing effectively.
+
+
+### Cluster 2 - "Over Valued-Least Profitability Companies".
+
+The cluster of companies in question has the lowest return on equity (ROE) among all clusters, suggesting weakness in converting equity into profits. Additionally, the cluster exhibits the highest price-earnings ratio (PE_ratio), which may imply that the companies are overvalued and not generating expected profits.
+
+
+### cluster 3 - "Better Earning-Low Risk Companies".
+
+The companies in this cluster demonstrates the highest revenue growth, indicating that they are progressing well in terms of development.The companies in this cluster are utilizing their assets less efficiently, as evidenced by their low asset turnover ratio. Despite this, the companies in the cluster exhibit a lower price-earnings ratio (PE_ratio), which may suggest that they have better earnings.
+
+
+### cluster 4 - "High Debt-Risky Companies".
+
+In this cluster the companies  have the highest leverage, indicating that they are utilizing more debt and high beta value indicating that their stocks are more volatile.These companies have lowest market capitalization, return on assets (ROA), Revenue_growth, and Net_profit_margin suggesting that they have a higher risk of financial challenges. 
+
+
+### cluster 5 - "High Performing and Financially strong Companies".
+
+This cluster have the comapnies that demonstrates exceptional performance, as it has the highest market capitalization, return on assets (ROA), return on equity (ROE), asset turnover, revenue growth, and net profit margin.This cluster exhibit less leverage, indicating that they are performing well while maintaining low levels of debt and are financially strong.
+
+
+
